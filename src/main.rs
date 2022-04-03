@@ -7,11 +7,13 @@ use std::process::Command;//Libreria Estandar de rust.
 use std::ptr;//Libreria Estandar de rust.
 use std::collections::HashMap;//Libreria Estandar de rust para obtener HashMaps.
 use std::mem;//Libreria Estandar de rust para el manejo de memoria.
-
+use std::io::stdin; //Nos Permitira detenernos hasta que el usuario indique.
+use users::{get_current_uid}; //Nos permitira obtener los usuarios corriendo el proceso.
+use chrono::prelude::*;//Nos permitira obtener el tiempo de ejecucion.
 
 mod llamadas_sistema; //Llamamos a la colleccion de nombre de llamadas de sistema.
 #[allow(dead_code)]
-//Esta funcion nos permite seguir el proceso hijo utilizando ptrace
+//Esta funcion nos permite seguir el proceso hijo utilizando ptrace habilitando su trasabilidad
 fn traceme() -> std::io::Result<()> {
     match ptrace::traceme() {
         Ok(()) => Ok(()),
@@ -36,13 +38,34 @@ pub fn get_regs(id_proceso: nix::unistd::Pid) -> Result<user_regs_struct, nix::E
         res.map(|_| registros)
     }
 }
+#[allow(dead_code)]
 #[allow(deprecated)]
 fn main() {
-    let argv: Vec<_> = std::env::args().collect();
-    let mut terminal = Command::new(&argv[1]);
+    let argv: Vec<_> = std::env::args().collect(); //Nos permite aceptar argumentos de la terminal
+    let largo_vector = argv.len();
+    let mut acum = largo_vector-1;
+    if largo_vector == 2{
+        acum = 1;
+    };
+    let mut terminal = Command::new(&argv[acum]);
+    let mut wait = 0;
+    let mut full_info = 0;
+    //Verificamos los argumentos entrantes
     for arg in argv {
         println!("{}", arg);
-        terminal.arg(arg);
+        if arg == "-v"{
+            full_info = 1;
+            println!("Argumento -v Detectado");
+        };
+        if arg == "-V"{
+            wait = 1;
+            full_info = 1;
+            println!("Argumento -V Detectado");
+        }
+        else{
+            terminal.arg(arg);
+        };
+        
     }
     //Se guarda la cantidad de llamadas.
     let mut map = HashMap::new();
@@ -94,7 +117,23 @@ fn main() {
         waitpid(id_proceso, None).ok(); //Esperamos a que el proceso termine, en caso de error lo convertimos en none.
         salida = !salida;
     }
+    
+    println!("Se unio al proceso: {}",id_proceso);
     for (syscall, &numero) in map.iter() {
-        println!("{}: {}", syscall, numero);
+            
+        if wait == 1 {
+            let mut input = String::new();
+            stdin().read_line(&mut input).expect("Failed to read line");
+        }
+        if full_info == 1{
+            let local: DateTime<Local> = Local::now();
+            let uid = get_current_uid();
+            println!("PID:{} | UsuarioInvoke: {} | Syscall: {} | Cant_Rep: {} | Tiempo: {}", 
+            id_proceso,uid,syscall, numero, local);
+        }
+        else{
+            println!("{}: {}", syscall, numero);
+        }
+        
     }
 }
