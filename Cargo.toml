@@ -1,0 +1,9 @@
+[package]
+name = "syscalltrace"
+version = "0.1.1"
+authors = ["Christian Acuna"]
+edition = "2021"
+
+[dependencies]
+libc = "*"
+nix = "0.14.1"
